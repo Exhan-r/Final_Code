@@ -99,7 +99,7 @@ def lineFollow():
 def collect(height):
     forkMotor.spin_to_position(0)
     forkMotor.reset_position()
-    forkMotor.spin_to_position(-height)
+    forkMotor.spin_to_position(-height, DEGREES, 200, RPM)
 
     leftMotor.spin_for(FORWARD, 700, DEGREES, 100, RPM, False)
     rightMotor.spin_for(FORWARD, -700, DEGREES, 100, RPM, True)
@@ -128,6 +128,7 @@ def mainFunction():
         while True:
             leftPos = leftMotor.position()
             rightPos = rightMotor.position()
+
             if leftPos < rotations and rightPos < rotations and ultraSonic.distance(MM) >= 50:
                 lineFollow()
             else:
@@ -147,7 +148,8 @@ def mainFunction():
             print("SEARCHING -> APPROACHING")
             currentState = APPROACHING
         else:
-            width, height = 0, 0
+            print("Timeout reached, returning to LINE FOLLOWING")
+            currentState = LINE
 
     elif currentState == APPROACHING:
         cx, cy, width, height = detect()
@@ -179,31 +181,92 @@ def mainFunction():
         currentState = RETURNING
 
     elif currentState == RETURNING:
-        # Step 1: Return to the line
-        leftMotor.spin_for(REVERSE, -720, DEGREES, 50, RPM, False)
-        rightMotor.spin_for(REVERSE, 720, DEGREES, 50, RPM, True)
+        # Step 1: Back up until detecting the line
+        print("Backing up to find the line")
+        while leftLine.reflectivity() < 50 and rightLine.reflectivity() < 50:
+            leftMotor.spin(REVERSE, 150, RPM)
+            rightMotor.spin(REVERSE, -150, RPM)
 
-        # Follow the line until both sensors detect it
-        while leftLine.reflectivity() < 50 or rightLine.reflectivity() < 50:
-            lineFollow()
-
-        # Stop motors when the line is detected
         leftMotor.stop()
         rightMotor.stop()
+        print("Line detected")
 
-        # Step 2: Deposit fruit in the box
+        # Step 2: Line follow until 60 mm away from target
+        print("Line following to drop-off point")
+        while ultraSonic.distance(MM) > 60:
+            lineFollow()
+
+        leftMotor.stop()
+        rightMotor.stop()
+        print("At drop-off point")
+
+        # Step 3: Deposit the fruit
         print("Depositing fruit into the box")
         basketMotor.spin_to_position(-65, DEGREES)  # Dump fruit
-        wait(1, SECONDS)  # Pause for dumping
+        wait(1, SECONDS)  # Pause to allow fruit to fall
 
-        # Step 3: Turn 180 degrees
-        print("Turning 180 degrees")
-        leftMotor.spin_for(FORWARD, 720, DEGREES, 50, RPM, False)  # 360 degrees * 2 for 180-degree turn
-        rightMotor.spin_for(FORWARD, -720, DEGREES, 50, RPM, True)
+        # Step 4: Line follow backwards to starting position
+        print("Line following backwards to starting position")
+        # Reset motor positions to track the distance back
+        leftMotor.reset_position()
+        rightMotor.reset_position()
 
-        # Step 4: Transition back to LINE state
-        print("RETURNING -> LINE")
+        target_distance = leftMotor.position(DEGREES)  # Record the forward distance traveled
+
+        while leftMotor.position(DEGREES) > -target_distance:
+            if leftLine.reflectivity() > 50 and rightLine.reflectivity() > 50:
+                leftMotor.spin(REVERSE, 150, RPM)
+                rightMotor.spin(REVERSE, -150, RPM)
+            elif leftLine.reflectivity() > rightLine.reflectivity():
+                leftMotor.spin(REVERSE, 170, RPM)
+                rightMotor.spin(REVERSE, -90, RPM)
+            elif rightLine.reflectivity() > leftLine.reflectivity():
+                leftMotor.spin(REVERSE, 90, RPM)
+                rightMotor.spin(REVERSE, -170, RPM)
+            else:
+                leftMotor.spin(REVERSE, 150, RPM)
+                rightMotor.spin(REVERSE, -150, RPM)
+
+        leftMotor.stop()
+        rightMotor.stop()
+        print("Returned to starting position")
+
+        # Transition back to LINE state
         currentState = LINE
+
+    # elif currentState == RETURNING:
+    #     # Step 1: Return to the line
+    #     leftMotor.spin_for(REVERSE, 720, DEGREES, 35, RPM, False)
+    #     rightMotor.spin_for(REVERSE, -720, DEGREES, 35, RPM, True)
+
+    #     while leftLine.reflectivity() > 50 or rightLine.reflectivity() > 50:
+    #         leftMotor.spin(FORWARD, 30)
+    #         rightMotor.spin(FORWARD, -30)
+        
+    #     leftMotor.stop()
+    #     rightMotor.stop()
+
+    #     # Follow the line until both sensors detect it
+    #     while leftLine.reflectivity() < 50 or rightLine.reflectivity() < 50:
+    #         lineFollow()
+
+    #     # Stop motors when the line is detected
+    #     leftMotor.stop()
+    #     rightMotor.stop()
+
+    #     # Step 2: Deposit fruit in the box
+    #     print("Depositing fruit into the box")
+    #     basketMotor.spin_to_position(-65, DEGREES)  # Dump fruit
+    #     wait(1, SECONDS)  # Pause for dumping
+
+    #     # Step 3: Turn 180 degrees
+    #     print("Turning 180 degrees")
+    #     leftMotor.spin_for(FORWARD, 720, DEGREES, 50, RPM, False)  # 360 degrees * 2 for 180-degree turn
+    #     rightMotor.spin_for(FORWARD, -720, DEGREES, 50, RPM, True)
+
+    #     # Step 4: Transition back to LINE state
+    #     print("RETURNING -> LINE")
+    #     currentState = LINE
 
 
 # Continuous loop for control
@@ -219,6 +282,8 @@ while True:
             forkMotor.stop()
             armMotor.stop()
             currentState = IDLE
+    
+
 
     if runMainFunction:
         mainFunction()
