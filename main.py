@@ -48,6 +48,10 @@ forkMotor.reset_position()
 forkMotor.set_stopping(HOLD)
 
 # Vision
+Vision16__LIME = Signature(1, -6571, -5693, -6132, -3053, -2661, -2857, 2.5, 0)
+Vision16__GRAPEFRUIT = Signature(2, 3641, 5393, 4517, -2541, -2241, -2391, 2.5, 0)
+Vision16__LEMON = Signature(3, 1519, 1965, 1742, -3595, -3365, -3480, 2.5, 0)
+Vision16 = Vision(Ports.PORT16, 50, Vision16__LIME, Vision16__GRAPEFRUIT, Vision16__LEMON)
 Vision3_LIME = Signature(1, -6429, -5309, -5869, -3997, -3303, -3650, 2.5, 0)
 Vision3 = Vision(Ports.PORT20, 50, Vision3_LIME)
 
@@ -66,7 +70,7 @@ runMainFunction = False
 
 # Vision Function
 def detect():
-    obj = Vision3.take_snapshot(Vision3_LIME)
+    obj = Vision16.take_snapshot(Vision16__LIME)
     if obj:
         largest = Vision3.largest_object()
         cx, cy, width, height = largest.centerX, largest.centerY, largest.width, largest.height
