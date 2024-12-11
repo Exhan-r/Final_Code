@@ -1,3 +1,11 @@
+Vision16__LIME = Signature (1, -6571, -5693, -6132, -3053, -2661, -2857, 2.5, 0)
+Vision16__MANGO = Signature (2, 3641, 5393, 4517, -2541, -2241, -2391, 2.5, 0)
+Vision16__LEMON = Signature (3, 1193, 2485, 1839, -3569, -3375, -3472, 2.5, 0)
+vision Vision16 = Vision (PORT16, 50, Vision16__LIME, Vision16__MANGO, Vision16__LEMON)
+
+
+
+
 # ---------------------------------------------------------------------------- #
 #                                                                              #
 # 	Module:       main.py                                                      #
