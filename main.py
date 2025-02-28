@@ -1,20 +1,3 @@
-Vision16__LIME = Signature (1, -6571, -5693, -6132, -3053, -2661, -2857, 2.5, 0)
-Vision16__MANGO = Signature (2, 3641, 5393, 4517, -2541, -2241, -2391, 2.5, 0)
-Vision16__LEMON = Signature (3, 1193, 2485, 1839, -3569, -3375, -3472, 2.5, 0)
-vision Vision16 = Vision (PORT16, 50, Vision16__LIME, Vision16__MANGO, Vision16__LEMON)
-
-
-
-
-# ---------------------------------------------------------------------------- #
-#                                                                              #
-# 	Module:       main.py                                                      #
-# 	Author:       krizz                                                        #
-# 	Created:      12/4/2024, 5:08:37 PM                                        #
-# 	Description:  V5 project                                                   #
-#                                                                              #
-# ---------------------------------------------------------------------------- #
-
 # Library imports
 from vex import *
 
@@ -28,8 +11,9 @@ RETURNING = 5
 
 currentState = IDLE
 
-# Counter
+# Counters
 i = 0
+j = 0
 
 # Initialization
 brain = Brain()
@@ -52,16 +36,26 @@ leftMotor.reset_position()
 rightMotor.reset_position()
 armMotor.reset_position()
 forkMotor.reset_position()
+basketMotor.reset_position()
+
 
 forkMotor.set_stopping(HOLD)
 
 # Vision
+'''
 Vision16__LIME = Signature(1, -6571, -5693, -6132, -3053, -2661, -2857, 2.5, 0)
 Vision16__GRAPEFRUIT = Signature(2, 3641, 5393, 4517, -2541, -2241, -2391, 2.5, 0)
 Vision16__LEMON = Signature(3, 1519, 1965, 1742, -3595, -3365, -3480, 2.5, 0)
 Vision16 = Vision(Ports.PORT16, 50, Vision16__LIME, Vision16__GRAPEFRUIT, Vision16__LEMON)
 Vision3_LIME = Signature(1, -6429, -5309, -5869, -3997, -3303, -3650, 2.5, 0)
 Vision3 = Vision(Ports.PORT20, 50, Vision3_LIME)
+'''
+Vision16__LIME = Signature (1, -6571, -5693, -6132, -3053, -2661, -2857, 2.5, 0)
+Vision16__MANGO = Signature (2, 3641, 5393, 4517, -2541, -2241, -2391, 2.5, 0)
+Vision16__LEMON = Signature (3, 1193, 2485, 1839, -3569, -3375, -3472, 3.5, 0)
+Vision16 = Vision (Ports.PORT20, 50, Vision16__LIME, Vision16__MANGO, Vision16__LEMON)
+
+
 
 targetX = 0
 
@@ -78,10 +72,22 @@ runMainFunction = False
 
 # Vision Function
 def detect():
-    obj = Vision16.take_snapshot(Vision16__LIME)
+
+    if i == 0:
+        obj = Vision16.take_snapshot(Vision16__LEMON)
+        print(1)
+    elif i == 1:
+        obj = Vision16.take_snapshot(Vision16__MANGO)
+        print(2)
+    elif i == 2:
+        obj = Vision16.take_snapshot(Vision16__LIME)
+        print(3)
+    
     if obj:
-        largest = Vision3.largest_object()
+        largest = Vision16.largest_object()
         cx, cy, width, height = largest.centerX, largest.centerY, largest.width, largest.height
+        print('DETECTED')
+        print(height)
         return cx, cy, width, height
     else:
         return None, None, 0, 0
@@ -94,16 +100,16 @@ def lineFollow():
         rightMotor.spin(FORWARD, -200)
     elif leftLine.reflectivity() > rightLine.reflectivity():
         leftMotor.spin(FORWARD, 170)
-        rightMotor.spin(FORWARD, -90)
+        rightMotor.spin(FORWARD, -50)
     elif rightLine.reflectivity() > leftLine.reflectivity():
-        leftMotor.spin(FORWARD, 90)
+        leftMotor.spin(FORWARD, 50)
         rightMotor.spin(FORWARD, -170)
     elif leftLine.reflectivity() < lowerBound and rightLine.reflectivity() < lowerBound:
         if leftLine.reflectivity() < rightLine.reflectivity():
             leftMotor.spin(FORWARD, 225)
-            rightMotor.spin(FORWARD, -150)
+            rightMotor.spin(FORWARD, -100)
         else:
-            leftMotor.spin(FORWARD, 150)
+            leftMotor.spin(FORWARD, 100)
             rightMotor.spin(FORWARD, -225)
 
 
@@ -116,11 +122,14 @@ def collect(height):
     leftMotor.spin_for(FORWARD, 700, DEGREES, 100, RPM, False)
     rightMotor.spin_for(FORWARD, -700, DEGREES, 100, RPM, True)
 
-    forkMotor.spin_to_position(0)
+    forkMotor.spin_to_position(10)
     wait(1, SECONDS)
-
+    forkMotor.spin_to_position(-height, False)
+    wait(1, SECONDS)
     leftMotor.spin_for(FORWARD, -720, DEGREES, 100, RPM, False)
     rightMotor.spin_for(FORWARD, 720, DEGREES, 100, RPM, True)
+    forkMotor.spin_to_position(0)
+    wait(1, SECONDS)
 
 
 # Main function
@@ -128,14 +137,16 @@ def mainFunction():
     global currentState
     global targetX
     global i
+    global j
 
     if currentState == IDLE:
         print("Starting autonomous sequence")
-        basketMotor.spin_to_position(60, DEGREES)  # Reset basket position2
+        basketMotor.reset_position()
+        basketMotor.spin_to_position(30, DEGREES)  # Reset basket position2
         currentState = LINE
 
     elif currentState == LINE:
-        rotations = (2000 / wheelCircumference) * 360
+        rotations = (3500 / wheelCircumference) * 360
 
         while True:
             leftPos = leftMotor.position()
@@ -160,8 +171,7 @@ def mainFunction():
             print("SEARCHING -> APPROACHING")
             currentState = APPROACHING
         else:
-            print("Timeout reached, returning to LINE FOLLOWING")
-            currentState = LINE
+            width, height = 0, 0
 
     elif currentState == APPROACHING:
         cx, cy, width, height = detect()
@@ -185,19 +195,26 @@ def mainFunction():
                 leftMotor.stop()
                 rightMotor.stop()
                 currentState = COLLECTING
+                print(i)
+                i += 1
+                print(i)
 
     elif currentState == COLLECTING:
-        #basketMotor.spin_to_position(150, DEGREES)  # Reset basket position
-        collect(55)
+        collect(90)
         print("COLLECTING -> RETURNING")
+
         currentState = RETURNING
 
     elif currentState == RETURNING:
         # Step 1: Back up until detecting the line
+        leftMotor.spin_for(FORWARD, -1140, DEGREES, False)
+        rightMotor.spin_for(FORWARD, 1140, DEGREES, True)
+        wait(2, SECONDS)
         print("Backing up to find the line")
-        while leftLine.reflectivity() < 50 and rightLine.reflectivity() < 50:
-            leftMotor.spin(REVERSE, 150, RPM)
-            rightMotor.spin(REVERSE, -150, RPM)
+        while leftLine.reflectivity() < 85 and rightLine.reflectivity() < 85:
+            print("looking for line")
+            leftMotor.spin(FORWARD, 200, RPM)
+            rightMotor.spin(FORWARD, 100, RPM)
 
         leftMotor.stop()
         rightMotor.stop()
@@ -205,7 +222,7 @@ def mainFunction():
 
         # Step 2: Line follow until 60 mm away from target
         print("Line following to drop-off point")
-        while ultraSonic.distance(MM) > 60:
+        while ultraSonic.distance(MM) > 100:
             lineFollow()
 
         leftMotor.stop()
@@ -214,37 +231,70 @@ def mainFunction():
 
         # Step 3: Deposit the fruit
         print("Depositing fruit into the box")
-        basketMotor.spin_to_position(-65, DEGREES)  # Dump fruit
+        basketMotor.spin_to_position(-30, DEGREES)  # Dump fruit
         wait(1, SECONDS)  # Pause to allow fruit to fall
-
+        basketMotor.spin_to_position(30, DEGREES, 5, RPM) 
+        wait(1, SECONDS)
+        basketMotor.spin_to_position(-30, DEGREES)
+        wait(1, SECONDS)
+        basketMotor.spin_to_position(30, DEGREES, 5, RPM) 
+        wait(1, SECONDS)
         # Step 4: Line follow backwards to starting position
-        print("Line following backwards to starting position")
+        print("Moving backwards")
         # Reset motor positions to track the distance back
         leftMotor.reset_position()
         rightMotor.reset_position()
+        '''
+        if j == 0:
+            target_distance = 1145.917 * 5
+            print('j: ', j)
+            j = 1
+            print('j: ',j)
+        if j == 1:
+            target_distance = 1145.917 * 5
+            print('j: ',j)
+            j = 2
+            print('j: ',j)
+        else:
+            target_distance = 0
+        '''
 
-        target_distance = leftMotor.position(DEGREES)  # Record the forward distance traveled
+        if j == 0:
+            target_distance = 1650.087 * 5
+        if j == 1:
+            target_distance = 630.2536 * 5
+        else:
+            target_distance = 12345
+            print('BAD BAD BAD')
 
         while leftMotor.position(DEGREES) > -target_distance:
-            if leftLine.reflectivity() > 50 and rightLine.reflectivity() > 50:
-                leftMotor.spin(REVERSE, 150, RPM)
-                rightMotor.spin(REVERSE, -150, RPM)
-            elif leftLine.reflectivity() > rightLine.reflectivity():
-                leftMotor.spin(REVERSE, 170, RPM)
-                rightMotor.spin(REVERSE, -90, RPM)
-            elif rightLine.reflectivity() > leftLine.reflectivity():
-                leftMotor.spin(REVERSE, 90, RPM)
-                rightMotor.spin(REVERSE, -170, RPM)
-            else:
-                leftMotor.spin(REVERSE, 150, RPM)
-                rightMotor.spin(REVERSE, -150, RPM)
-
+            print("Backwards")
+            leftMotor.spin(FORWARD, -100, RPM)
+            rightMotor.spin(FORWARD, 100, RPM)
+        '''
+                if leftLine.reflectivity() > 50 and rightLine.reflectivity() > 50:
+                    leftMotor.spin(REVERSE, 150, RPM)
+                    rightMotor.spin(REVERSE, -150, RPM)
+                elif leftLine.reflectivity() > rightLine.reflectivity():
+                    leftMotor.spin(REVERSE, 170, RPM)
+                    rightMotor.spin(REVERSE, -90, RPM)
+                elif rightLine.reflectivity() > leftLine.reflectivity():
+                    leftMotor.spin(REVERSE, 90, RPM)
+                    rightMotor.spin(REVERSE, -170, RPM)
+                else:
+                    leftMotor.spin(REVERSE, 150, RPM)
+                    rightMotor.spin(REVERSE, -150, RPM)
+    '''
         leftMotor.stop()
         rightMotor.stop()
-        print("Returned to starting position")
+        print("J: ", j)
+        j+=1
+        print("J: ", j)
+        print("ARRIVED AT NEXT TREE")
 
-        # Transition back to LINE state
-        currentState = LINE
+        # Transition back to SEARCHING state
+        currentState = SEARCHING
+        print('RETURNING -> SEARCHING')
 
     # elif currentState == RETURNING:
     #     # Step 1: Return to the line
